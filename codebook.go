@@ -40,7 +40,7 @@ func (c *codebook) ReadFrom(r *bitReader) error {
 			currentLength++
 		}
 	}
-	c.entries = entries.code
+	c.entries = entries.build()
 
 	lookupType := r.Read8(4)
 	if lookupType == 0 {
