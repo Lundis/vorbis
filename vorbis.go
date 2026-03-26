@@ -14,7 +14,7 @@ type Decoder struct {
 	CommentHeader
 
 	codebooks []codebook
-	floors    []floor
+	floors    []*floor1
 	residues  []residue
 	mappings  []mapping
 	modes     []mode
@@ -28,6 +28,12 @@ type Decoder struct {
 	residueBuffer [][]float32
 	floorBuffer   []floorData
 	rawBuffer     [][]float32
+
+	// memory allocated once to avoid allocations inside loops
+	sharedClassifications []uint32
+	bitReader             bitReader
+	residueTmp            [][]float32
+	residueDoNotDecode    []bool
 }
 
 // The Bitrate of a vorbis stream.
@@ -111,6 +117,7 @@ func (d *Decoder) Decode(in []byte) ([]float32, error) {
 	if !d.HeadersRead() {
 		return nil, errors.New("vorbis: missing headers")
 	}
+
 	return d.decodePacket(newBitReader(in), nil)
 }
 
@@ -124,7 +131,11 @@ func (d *Decoder) DecodeInto(in []byte, buffer []float32) ([]float32, error) {
 	if len(buffer) < d.BufferSize() {
 		return nil, errors.New("vorbis: buffer too short")
 	}
-	return d.decodePacket(newBitReader(in), buffer)
+	d.bitReader.data = in
+	d.bitReader.position = 0
+	d.bitReader.bitOffset = 0
+	d.bitReader.eof = false
+	return d.decodePacket(&d.bitReader, buffer)
 }
 
 // Clear must be called between decoding two non-consecutive packets.

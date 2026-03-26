@@ -46,7 +46,7 @@ func (x *residue) ReadFrom(r *bitReader) error {
 	return nil
 }
 
-func (x *residue) Decode(r *bitReader, doNotDecode []bool, n uint32, books []codebook, out [][]float32) {
+func (x *residue) Decode(r *bitReader, doNotDecode []bool, n uint32, books []codebook, out [][]float32, sharedClassifications *[]uint32) {
 	ch := uint32(len(doNotDecode))
 	if x.residueType == 2 {
 		decode := false
@@ -78,7 +78,11 @@ func (x *residue) Decode(r *bitReader, doNotDecode []bool, n uint32, books []cod
 		return
 	}
 	cs := (partitionsToRead + classWordsPerCodeword)
-	classifications := make([]uint32, ch*cs)
+	classifications := *sharedClassifications
+	if len(*sharedClassifications) < int(ch*cs) {
+		classifications = make([]uint32, ch*cs)
+		*sharedClassifications = classifications
+	}
 	for pass := 0; pass < 8; pass++ {
 		partitionCount := uint32(0)
 		for partitionCount < partitionsToRead {

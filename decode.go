@@ -3,8 +3,8 @@ package vorbis
 import "errors"
 
 type floorData struct {
-	floor     floor
-	data      interface{}
+	floor     *floor1
+	data      []uint32
 	noResidue bool
 }
 
@@ -144,16 +144,22 @@ func (d *Decoder) decodeFloors(r *bitReader, floors []floorData, mapping *mappin
 }
 
 func (d *Decoder) decodeResidue(r *bitReader, out [][]float32, mapping *mapping, floors []floorData, n uint32) {
+	// this optimization had no impact. maybe only 1 submap usually?
+	if len(d.residueDoNotDecode) < len(out) {
+
+		d.residueDoNotDecode = make([]bool, 0, len(out))
+		d.residueTmp = make([][]float32, 0, len(out))
+	}
 	for i := range mapping.submaps {
-		doNotDecode := make([]bool, 0, len(out))
-		tmp := make([][]float32, 0, len(out))
+		d.residueDoNotDecode = d.residueDoNotDecode[:0]
+		d.residueTmp = d.residueTmp[:0]
 		for j := 0; j < d.channels; j++ {
 			if mapping.mux[j] == uint8(i) {
-				doNotDecode = append(doNotDecode, floors[j].noResidue)
-				tmp = append(tmp, out[j])
+				d.residueDoNotDecode = append(d.residueDoNotDecode, floors[j].noResidue)
+				d.residueTmp = append(d.residueTmp, out[j])
 			}
 		}
-		d.residues[mapping.submaps[i].residue].Decode(r, doNotDecode, n, d.codebooks, tmp)
+		d.residues[mapping.submaps[i].residue].Decode(r, d.residueDoNotDecode, n, d.codebooks, d.residueTmp, &d.sharedClassifications)
 	}
 }
 

@@ -2,11 +2,6 @@ package vorbis
 
 import "errors"
 
-type floor interface {
-	Decode(*bitReader, []codebook, uint32) interface{}
-	Apply(out []float32, data interface{})
-}
-
 type mapping struct {
 	couplingSteps uint16
 	angle         []uint8
@@ -45,14 +40,12 @@ func (d *Decoder) readSetupHeader(header []byte) error {
 	}
 
 	// FLOORS
-	d.floors = make([]floor, r.Read8(6)+1)
+	d.floors = make([]*floor1, r.Read8(6)+1)
 	for i := range d.floors {
 		var err error
 		switch r.Read16(16) {
 		case 0:
-			f := new(floor0)
-			err = f.ReadFrom(r)
-			d.floors[i] = f
+			panic("vorbis: files with floor0 not supported for performance reasons! re-encode your file before using it")
 		case 1:
 			f := new(floor1)
 			err = f.ReadFrom(r)

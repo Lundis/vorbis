@@ -12,6 +12,8 @@ type floor1 struct {
 
 	step2  []bool
 	finalY []uint32
+
+	tmpY []uint32
 }
 
 type floor1Class struct {
@@ -66,14 +68,15 @@ func (f *floor1) ReadFrom(r *bitReader) error {
 	return nil
 }
 
-func (f *floor1) Decode(r *bitReader, books []codebook, n uint32) interface{} {
+func (f *floor1) Decode(r *bitReader, books []codebook, n uint32) []uint32 {
 	if !r.ReadBool() {
 		return nil
 	}
 
 	range_ := [4]uint32{256, 128, 86, 64}[f.multiplier-1]
-	y := make([]uint32, 0, len(f.xList))
-	y = append(y, r.Read32(ilog(int(range_)-1)), r.Read32(ilog(int(range_)-1)))
+	//y := make([]uint32, 0, len(f.xList))
+	f.tmpY = f.tmpY[:0]
+	f.tmpY = append(f.tmpY, r.Read32(ilog(int(range_)-1)), r.Read32(ilog(int(range_)-1)))
 	for _, classIndex := range f.partitionClassList {
 		class := f.classes[classIndex]
 		cdim := class.dimension
@@ -87,17 +90,17 @@ func (f *floor1) Decode(r *bitReader, books []codebook, n uint32) interface{} {
 			book := class.subclassBooks[cval&csub]
 			cval >>= cbits
 			if book != 0xFF {
-				y = append(y, books[book].DecodeScalar(r))
+				f.tmpY = append(f.tmpY, books[book].DecodeScalar(r))
 			} else {
-				y = append(y, 0)
+				f.tmpY = append(f.tmpY, 0)
 			}
 		}
 	}
-	return y
+	return f.tmpY
 }
 
-func (f *floor1) Apply(out []float32, data interface{}) {
-	y := data.([]uint32)
+func (f *floor1) Apply(out []float32, data []uint32) {
+	y := data
 	n := uint32(len(out))
 	range_ := [4]uint32{256, 128, 86, 64}[f.multiplier-1]
 
