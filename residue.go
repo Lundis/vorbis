@@ -69,7 +69,7 @@ func (x *residue) Decode(r *bitReader, doNotDecode []bool, n uint32, books []cod
 	if end > n {
 		end = n
 	}
-	classbook := books[x.classbook]
+	classbook := &books[x.classbook]
 	classWordsPerCodeword := classbook.dimensions
 	nToRead := end - begin
 	partitionsToRead := nToRead / x.partitionSize
@@ -83,6 +83,7 @@ func (x *residue) Decode(r *bitReader, doNotDecode []bool, n uint32, books []cod
 		classifications = make([]uint32, ch*cs)
 		*sharedClassifications = classifications
 	}
+	numCh := uint32(len(out))
 	for pass := 0; pass < 8; pass++ {
 		partitionCount := uint32(0)
 		for partitionCount < partitionsToRead {
@@ -98,13 +99,13 @@ func (x *residue) Decode(r *bitReader, doNotDecode []bool, n uint32, books []cod
 				}
 			}
 			for classword := uint32(0); classword < classWordsPerCodeword && partitionCount < partitionsToRead; classword++ {
+				offset := begin + partitionCount*x.partitionSize
 				for j := uint32(0); j < ch; j++ {
 					if !doNotDecode[j] {
 						vqclass := classifications[j*cs+partitionCount]
 						vqbook := x.books[vqclass][pass]
 						if vqbook != -1 {
-							book := books[vqbook]
-							offset := begin + partitionCount*x.partitionSize
+							book := &books[vqbook]
 							switch x.residueType {
 							case 0:
 								step := x.partitionSize / book.dimensions
@@ -115,22 +116,36 @@ func (x *residue) Decode(r *bitReader, doNotDecode []bool, n uint32, books []cod
 									}
 								}
 							case 1:
+								outJ := out[j]
 								var i uint32
 								for i < x.partitionSize {
 									tmp := book.DecodeVector(r)
+									dims := uint32(len(tmp))
+									dst := outJ[offset+i : offset+i+dims]
 									for k := range tmp {
-										out[j][offset+i] += tmp[k]
-										i++
+										dst[k] += tmp[k]
 									}
+									i += dims
 								}
 							case 2:
 								var i uint32
-								ch := uint32(len(out))
-								for i < x.partitionSize {
-									tmp := book.DecodeVector(r)
-									for k := range tmp {
-										out[(offset+i)%ch][(offset+i)/ch] += tmp[k]
-										i++
+								if numCh == 2 {
+									for i < x.partitionSize {
+										tmp := book.DecodeVector(r)
+										for _, v := range tmp {
+											pos := offset + i
+											out[pos&1][pos>>1] += v
+											i++
+										}
+									}
+								} else {
+									for i < x.partitionSize {
+										tmp := book.DecodeVector(r)
+										for _, v := range tmp {
+											pos := offset + i
+											out[pos%numCh][pos/numCh] += v
+											i++
+										}
 									}
 								}
 							}
