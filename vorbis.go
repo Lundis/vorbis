@@ -132,8 +132,9 @@ func (d *Decoder) DecodeInto(in []byte, buffer []float32) ([]float32, error) {
 		return nil, errors.New("vorbis: buffer too short")
 	}
 	d.bitReader.data = in
-	d.bitReader.position = 0
-	d.bitReader.bitOffset = 0
+	d.bitReader.pos = 0
+	d.bitReader.buf = 0
+	d.bitReader.bitsLeft = 0
 	d.bitReader.eof = false
 	return d.decodePacket(&d.bitReader, buffer)
 }
